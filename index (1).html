@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#11131b">
+<link rel="stylesheet" href="./style.css">
+<title>Chroma Shift — Color Logic Game</title>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="brand" aria-label="Chroma Shift">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div><div class="brand-name">CHROMA SHIFT</div><div class="brand-sub">A color logic game</div></div>
+    </div>
+    <div class="top-actions">
+      <span class="prototype-tag">Playable prototype</span>
+      <nav class="mode-switch" aria-label="Game mode">
+        <button class="mode-tab active" data-mode="level" aria-pressed="true">Level 01</button>
+        <button class="mode-tab" data-mode="sandbox" aria-pressed="false">Sandbox</button>
+      </nav>
+      <details class="howto"><summary>How to play (?)</summary><div class="howto-card"><strong>Reach the target color.</strong><p>Brighten and Darken move one shade. Invert switches to the opposite hue and flips the shade. Mix with Red, Green or Blue repeatedly halves the remaining hue distance and moves one shade toward neutral.</p><p><strong>Moves</strong> counts button presses. <strong>Cost</strong> adds each button's price. <strong>Path distance</strong> adds hue and shade cells crossed; inversion always counts as 6d. White and black are terminal.</p></div></details>
+    </div>
+  </header>
+
+  <main>
+    <section class="intro">
+      <div>
+        <div class="eyebrow" id="introEyebrow">Level 01 · Learn the inversion</div>
+        <h1 id="introTitle">Every color is a state.</h1>
+        <p id="introText">Transform the starting color into the target. Each move follows a fixed rule; the challenge is choosing a route that reaches the goal without wasting moves, cost, or color-space.</p>
+      </div>
+      <div class="intro-side"><div class="level-count" id="levelCount">01 <span style="color:#818a9e">/ 01</span></div><div class="level-sub" id="levelSub">First contact · 30 hues · 5 shades</div></div>
+    </section>
+
+    <section class="mission" aria-live="polite">
+      <div class="mission-left">
+        <div class="mission-icon" id="missionIcon">↗</div>
+        <div><div class="mission-title" id="missionTitle">Mission: reach Dark Green</div><div class="mission-desc" id="missionDesc">Invert the hue, then adjust its shade. There is more than one route.</div></div>
+      </div>
+      <div class="mission-route" id="missionRoute">
+        <span class="route-chip"><i class="mini-dot" id="routeStartDot"></i><span id="routeStartName">Light Red</span></span>
+        <span class="route-arrow">→</span>
+        <span class="route-chip"><i class="mini-dot" id="routeTargetDot"></i><span id="routeTargetName">Dark Green</span></span>
+      </div>
+    </section>
+
+    <section class="board" aria-label="Color board">
+      <article class="panel color-panel" aria-labelledby="currentPanelTitle">
+        <div class="panel-kicker"><span id="currentPanelTitle">Your color</span><span class="state-number">STATE A</span></div>
+        <div class="swatch-frame"><div class="swatch" id="currentSwatch" aria-label="Current color swatch"></div></div>
+        <div class="color-name" id="currentName">Light Red</div>
+        <div class="color-caption" id="currentCaption">Hue 01 · Shade −1</div>
+        <div class="hex-row"><button class="hex-code" id="currentHex" title="Copy current HEX code"><span>#F07A7A</span><span>Copy</span></button></div>
+        <div class="tone-indicator" id="currentToneIndicator" aria-label="Current shade level"></div>
+        <div class="tone-labels"><span>LIGHT</span><span>NEUTRAL</span><span>DARK</span></div>
+      </article>
+
+      <article class="panel wheel-panel" aria-labelledby="wheelTitle">
+        <div class="wheel-heading">
+          <div><h2 id="wheelTitle">Color space</h2><div class="wheel-sub">Move through hue + shade</div></div>
+          <span class="wheel-badge">30 hues / 5 shades</span>
+        </div>
+        <div class="wheel-wrap">
+          <svg id="colorWheel" viewBox="0 0 300 300" role="img" aria-label="A 30-section color wheel showing current and target colors">
+            <defs><filter id="markerGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+            <g id="wheelSectors"></g><g id="wheelGuides"></g><g id="wheelMarkers"></g>
+          </svg>
+        </div>
+        <div class="wheel-legend"><span><i class="legend-mark"></i>Your color</span><span><i class="legend-mark goal"></i>Target</span></div>
+        
+      </article>
+
+      <article class="panel color-panel" aria-labelledby="targetPanelTitle">
+        <div class="panel-kicker"><span id="targetPanelTitle">Target color</span><span class="state-number">STATE B</span></div>
+        <div class="swatch-frame"><div class="swatch" id="targetSwatch" aria-label="Target color swatch"></div></div>
+        <div class="color-name" id="targetName">Dark Green</div>
+        <div class="color-caption" id="targetCaption">Hue 07 · Shade +2</div>
+        <div class="hex-row"><button class="hex-code" id="targetHex" title="Copy target HEX code"><span>#0B6F0B</span><span>Copy</span></button></div>
+        <div class="tone-indicator" id="targetToneIndicator" aria-label="Target shade level"></div>
+        <div class="tone-labels"><span>LIGHT</span><span>NEUTRAL</span><span>DARK</span></div>
+      </article>
+    </section>
+
+    <section class="stats" aria-label="Current run statistics">
+      <article class="stat"><div class="stat-top"><div class="stat-label">Moves</div><span class="stat-info" title="One point for each action you take.">i</span></div><div class="stat-value" id="movesValue">0</div><div class="stat-best" id="movesBest">Best: <strong>—</strong></div></article>
+      <article class="stat"><div class="stat-top"><div class="stat-label">Cost</div><span class="stat-info" title="Each action has a price. Lower total cost is better.">i</span></div><div class="stat-value" id="costValue">0.0</div><div class="stat-best" id="costBest">Best: <strong>—</strong></div></article>
+      <article class="stat"><div class="stat-top"><div class="stat-label">Path distance</div><span class="stat-info" title="Hue cells plus shade levels crossed. Inversion always counts as 6d.">i</span></div><div class="stat-value" id="areaValue">0 <small>d</small></div><div class="stat-best" id="areaBest">Best: <strong>—</strong></div></article>
+    </section>
+
+    <section class="panel actions-panel" aria-labelledby="movesTitle">
+      <div class="section-head">
+        <div><h2 id="movesTitle">Choose your move</h2><p id="movesSubtitle">Rules stay fixed. Your route is up to you.</p></div>
+        <button class="quiet-btn" id="resetBtn">↺ Reset attempt</button>
+      </div>
+      
+      <div class="action-grid" id="coreActions">
+        <button class="action-btn primary-action" data-action="lighten" title="Move one shade toward white."><span class="action-icon">↑</span><span class="action-name">Brighten</span><span class="action-desc">One shade lighter</span><span class="action-cost">COST 1.0</span></button>
+        <button class="action-btn primary-action" data-action="darken" title="Move one shade toward black."><span class="action-icon">↓</span><span class="action-name">Darken</span><span class="action-desc">One shade darker</span><span class="action-cost">COST 1.0</span></button>
+        <button class="action-btn primary-action" data-action="invert" title="Move to the opposite hue and reverse its shade."><span class="action-icon">◐</span><span class="action-name">Invert</span><span class="action-desc">Opposite hue and shade</span><span class="action-cost">COST 3.0</span></button>
+      </div>
+      
+      <div class="action-grid" id="hopActions">
+        <button class="action-btn" data-action="avgRed" title="Move halfway around the shortest hue route toward red and one shade toward neutral."><span class="action-icon" style="background:#b72e3c">R</span><span class="action-name">Mix with Red</span><span class="action-desc">Halfway toward red</span><span class="action-cost">COST 0.8</span></button>
+        <button class="action-btn" data-action="avgGreen" title="Move halfway around the shortest hue route toward green and one shade toward neutral."><span class="action-icon" style="background:#237c46">G</span><span class="action-name">Mix with Green</span><span class="action-desc">Halfway toward green</span><span class="action-cost">COST 0.8</span></button>
+        <button class="action-btn" data-action="avgBlue" title="Move halfway around the shortest hue route toward blue and one shade toward neutral."><span class="action-icon" style="background:#285ac7">B</span><span class="action-name">Mix with Blue</span><span class="action-desc">Halfway toward blue</span><span class="action-cost">COST 0.8</span></button>
+      </div>
+      <div class="trap-note" id="trapNote" role="status">Terminal color reached. White, grey, and black have no outgoing moves. Reset to try another route.</div>
+      <div class="win-banner" id="winBanner" role="status" aria-live="polite">
+        <div><div class="win-title">Target reached. Nice work.</div><div class="win-desc" id="winDesc">Run complete.</div></div>
+        <div class="win-buttons"><button class="quiet-btn" id="replayBtn">Replay level</button><button class="btn-primary" id="continueBtn">Try to master it ↗</button></div>
+      </div>
+    </section>
+
+    <section class="panel trail-panel" aria-labelledby="trailTitle">
+      <div class="trail-title-row"><h2 id="trailTitle">Your trace</h2><span id="trailCount">0 actions taken</span></div>
+      <div class="trail" id="trail"><div class="empty-trail">Your color journey will appear here.</div></div>
+    </section>
+  </main>
+</div>
+  <script src="./script.js"></script>
+</body>
+</html>
