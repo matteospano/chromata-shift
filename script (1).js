@@ -2,47 +2,24 @@
   'use strict';
 
 const HUE_NAMES = [
-  'Red',            // 01
-  'Red-orange',     // 02
-  'Orange',         // 03
-  'Amber',          // 04
-  'Yellow-orange',  // 05
-  'Yellow',         // 06
-  'Yellow-lime',    // 07
-  'Lime',           // 08
-  'Yellow-green',   // 09
-  'Green',          // 10
-  'Sea green',      // 11
-  'Teal-green',     // 12
-  'Teal',           // 13
-  'Turquoise',      // 14
-  'Aqua',           // 15
-  'Cyan',           // 16
-  'Azure',          // 17
-  'Sky blue',       // 18
-  'Blue-cyan',      // 19
-  'Blue',           // 20
-  'Indigo',         // 21
-  'Blue-violet',    // 22
-  'Violet',         // 23
-  'Purple',         // 24
-  'Magenta',        // 25
-  'Red-violet',     // 26
-  'Rose',           // 27
-  'Crimson',        // 28
-  'Scarlet',        // 29
-  'Vermilion'       // 30
+  'Red', 'Red-orange', 'Orange', 'Amber', 'Yellow-orange',
+  'Yellow', 'Yellow-lime', 'Lime', 'Yellow-green', 'Spring green',
+  'Green', 'Sea green', 'Teal-green', 'Turquoise', 'Aqua',
+  'Cyan', 'Sky blue', 'Azure', 'Blue-cyan', 'Blue-indigo',
+  'Blue', 'Indigo', 'Blue-violet', 'Violet', 'Purple',
+  'Magenta', 'Red-violet', 'Rose', 'Crimson', 'Scarlet'
 ];
   const HUES = HUE_NAMES.map((name, i) => ({ name, angle: i * 12 }));
   const LIGHTNESS = { '-2': 82, '-1': 68, '0': 50, '1': 36, '2': 24 };
   const SHADE_NAMES = { '-2': 'Pale', '-1': 'Light', '0': '', '1': 'Deep', '2': 'Dark' };
-  const COSTS = { lighten: 1, darken: 1, invert: 3, avgRed: .8, avgGreen: .8, avgBlue: .8 };
+  const COSTS = { lighten: 1, darken: 1, invert: 3, mix: 1 };
+  const MIX_RATIOS = [{label:'3:1',a:3,b:1},{label:'2:1',a:2,b:1},{label:'3:2',a:3,b:2},{label:'1:1',a:1,b:1},{label:'2:3',a:2,b:3},{label:'1:2',a:1,b:2},{label:'1:3',a:1,b:3}];
+  const MIX_HUES = { red: 0, green: 10, blue: 20 };
   const ACTION_NAMES = {
-    lighten: 'Brighten', darken: 'Darken', invert: 'Invert',
-    avgRed: 'Mix with Red', avgGreen: 'Mix with Green', avgBlue: 'Mix with Blue'
+    lighten: 'Bright', darken: 'Dark', invert: 'Invert', mix: 'Mix'
   };
   const LEVEL_START = { kind: 'normal', h: 0, t: -1 };
-  const LEVEL_TARGET = { kind: 'normal', h: 9, t: 2 };
+  const LEVEL_TARGET = { kind: 'normal', h: 10, t: 2 };
   const BEST_KEY = 'chroma-shift-level-01-best-v1';
   const $ = (id) => document.getElementById(id);
 
@@ -52,15 +29,15 @@ const HUE_NAMES = [
 const HARD_START_OPTIONS = [
   {
     id: 'efficient',
-    label: 'Lime',
-    description: 'Two mixes · cost 1.6 · distance 2d',
-    state: { kind: 'normal', h: 7, t: 2 }
+    label: 'Green',
+    description: 'Two mixes · cost 2.0 · distance depends on ratio',
+    state: { kind: 'normal', h: 10, t: 2 }
   },
   {
     id: 'inversion',
     label: 'Pale Magenta',
     description: 'One inversion · cost 3.0 · distance 6d',
-    state: { kind: 'normal', h: 24, t: -2 }
+    state: { kind: 'normal', h: 25, t: -2 }
   },
   {
     id: 'classic',
@@ -93,6 +70,9 @@ const HARD_START_OPTIONS = [
   let path = [];
   let bests = loadBests();
   let copyTimer = null;
+  let selectedMixColor = 'red';
+  let selectedRatio = '1:1';
+  let previewState = null;
 
   function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
   function mod(n, m) { return ((n % m) + m) % m; }
@@ -100,19 +80,22 @@ const HARD_START_OPTIONS = [
   function isSame(a, b) {
     if (a.kind !== b.kind) return false;
     if (a.kind !== 'normal') return true;
-    return a.h === b.h && a.t === b.t;
+    return Math.abs(shortestHueDelta(a.h, b.h)) <= 0.5 && a.t === b.t;
   }
   function colorInfo(s) {
     if (s.kind === 'white') return { name: 'Pure White', hex: '#FFFFFF', css: '#FFFFFF', angle: null, tone: -3 };
     if (s.kind === 'black') return { name: 'Pure Black', hex: '#000000', css: '#000000', angle: null, tone: 3 };
     if (s.kind === 'grey') return { name: 'Neutral Grey', hex: '#808080', css: '#808080', angle: null, tone: 0 };
-    const hue = HUES[s.h];
+    const hueIndex = mod(Math.round(s.h), HUES.length);
+    const hue = HUES[hueIndex];
+    const angle = mod(s.h, HUES.length) * (360 / HUES.length);
     const prefix = SHADE_NAMES[String(s.t)];
-    const name = prefix ? prefix + ' ' + hue.name : hue.name;
+    const hueLabel = Math.abs(s.h - Math.round(s.h)) > 0.001 ? `${hue.name} ${s.h.toFixed(1)}` : hue.name;
+    const name = prefix ? prefix + ' ' + hueLabel : hueLabel;
     const lightness = LIGHTNESS[String(s.t)];
     const saturation = s.t === -2 ? 76 : (s.t === 2 ? 82 : 84);
-    const hex = hslToHex(hue.angle, saturation, lightness);
-    return { name, hex, css: hex, angle: hue.angle, tone: s.t };
+    const hex = hslToHex(angle, saturation, lightness);
+    return { name, hex, css: hex, angle, tone: s.t };
   }
   function hslToHex(h, s, l) {
     s /= 100; l /= 100;
@@ -138,7 +121,7 @@ const HARD_START_OPTIONS = [
   }
   function toneCaption(s) {
     if (isTerminal(s)) return 'Terminal color · no return';
-    return `Hue ${String(s.h + 1).padStart(2, '0')}`;
+    return `Hue index ${s.h.toFixed(1)} · shade ${s.t > 0 ? '+' : ''}${s.t}`;
   }
   function resolveTone(h, t) {
     if (t >= 3) return { kind: 'black', h, t: 3 };
@@ -152,20 +135,55 @@ function shortestHueDelta(from, to) {
   function cellDistance(a, b, actionId) {
     // Inversion is a special transform: it crosses the five shade bands and the center (6d).
     if (actionId === 'invert') return 6;
-    if (a.kind === 'normal' && b.kind === 'normal') return Math.abs(shortestHueDelta(a.h, b.h)) + Math.abs(a.t - b.t);
+    if (a.kind === 'normal' && b.kind === 'normal') return Math.round((Math.abs(shortestHueDelta(a.h, b.h)) + Math.abs(a.t - b.t)) * 10) / 10;
     // White/black sit one step beyond the lightest/darkest represented ring.
     if (a.kind === 'normal' && (b.kind === 'white' || b.kind === 'black')) return 1;
     return 0;
   }
 function hueMidpoint(from, to) {
-  const delta = shortestHueDelta(from, to);
-
-  // Always advance at least one cell when not at the target.
-  // Rounding by absolute magnitude works in both directions.
-  const step = Math.sign(delta) * Math.ceil(Math.abs(delta) / 2);
-
-  return mod(from + step, HUES.length);
-}
+    return mod(from + shortestHueDelta(from, to) / 2, HUES.length);
+  }
+  function computeMove(actionId, mixColor = selectedMixColor, ratio = selectedRatio) {
+    if (isTerminal(currentState)) return clone(currentState);
+    const s = currentState;
+    const towardNeutral = s.t === 0 ? 0 : s.t - Math.sign(s.t);
+    switch (actionId) {
+      case 'lighten': return resolveTone(s.h, s.t - 1);
+      case 'darken': return resolveTone(s.h, s.t + 1);
+      case 'invert': return { kind: 'normal', h: mod(s.h + HUES.length / 2, HUES.length), t: -s.t };
+      case 'mix': {
+        const targetHue = MIX_HUES[mixColor];
+        if (targetHue === undefined) return clone(s);
+        const r = MIX_RATIOS.find(item => item.label === ratio) || MIX_RATIOS[3];
+        // Ratio means current color : chosen primary. The primary's share determines the travel fraction.
+        const fraction = r.b / (r.a + r.b);
+        const delta = shortestHueDelta(s.h, targetHue);
+        const nextHue = mod(Math.round((s.h + delta * fraction) * 10) / 10, HUES.length);
+        return resolveTone(nextHue, towardNeutral);
+      }
+      default: return clone(s);
+    }
+  }
+  function applyMove(actionId, mixColor = selectedMixColor, ratio = selectedRatio) {
+    if (won || isTerminal(currentState)) return;
+    console.log(selectedRatio)
+    const prevState = clone(currentState);
+    const next = computeMove(actionId, mixColor, ratio);
+    if (isSame(prevState, next)) return;
+    const actionLabel = actionId === 'mix'
+      ? `Mix ${mixColor[0].toUpperCase() + mixColor.slice(1)} ${ratio}`
+      : ACTION_NAMES[actionId];
+    moves += 1;
+    cost = Number((cost + COSTS[actionId]).toFixed(1));
+    currentState = next;
+    pathDistance += cellDistance(prevState, currentState, actionId);
+    won = isSame(currentState, targetState);
+    path.push({ state: clone(currentState), action: actionLabel });
+    let improved = false;
+    if (won) improved = updateBests();
+    previewState = null;
+    render(improved);
+  }
   function loadBests() {
     try {
       const data = JSON.parse(localStorage.getItem(BEST_KEY) || 'null');
@@ -286,31 +304,6 @@ if (isSame(startState, targetState)) {
     path = [{ state: clone(currentState), action: 'Start' }];
     render();
   }
-  function applyMove(actionId) {
-    if (won || isTerminal(currentState)) return;
-    const prevStateForDistance = clone(currentState);
-    let next = clone(currentState);
-    const towardNeutral = currentState.t === 0 ? 0 : currentState.t - Math.sign(currentState.t);
-    switch (actionId) {
-      case 'lighten': next = resolveTone(currentState.h, currentState.t - 1); break;
-      case 'darken': next = resolveTone(currentState.h, currentState.t + 1); break;
-      case 'invert': next = { kind: 'normal', h: mod(currentState.h + HUES.length / 2, HUES.length), t: -currentState.t }; break;
-case 'avgRed': next = resolveTone(hueMidpoint(currentState.h, 0), towardNeutral); break;
-case 'avgGreen': next = resolveTone(hueMidpoint(currentState.h, 9), towardNeutral); break;
-case 'avgBlue': next = resolveTone(hueMidpoint(currentState.h, 19), towardNeutral); break;
-      default: return;
-    }
-    moves += 1;
-    cost = Number((cost + COSTS[actionId]).toFixed(1));
-    currentState = next;
-    pathDistance += cellDistance(prevStateForDistance, currentState, actionId);
-    const reached = isSame(currentState, targetState);
-    path.push({ state: clone(currentState), action: ACTION_NAMES[actionId] });
-    won = reached;
-    let improved = false;
-    if (won) improved = updateBests();
-    render(improved);
-  }
   function polar(cx, cy, r, degrees) {
     const rad = degrees * Math.PI / 180;
     return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
@@ -356,6 +349,7 @@ case 'avgBlue': next = resolveTone(hueMidpoint(currentState.h, 19), towardNeutra
     let marks = '';
     marks += `<circle cx="${tp.x.toFixed(2)}" cy="${tp.y.toFixed(2)}" r="7" fill="${colorInfo(targetState).hex}" stroke="#d1e0ff" stroke-width="2" stroke-dasharray="2 1"/>`;
     marks += `<circle cx="${cp.x.toFixed(2)}" cy="${cp.y.toFixed(2)}" r="7" fill="${colorInfo(currentState).hex}" stroke="#f2ffb4" stroke-width="2" filter="url(#markerGlow)"/>`;
+    if (previewState && !isSame(previewState, currentState)) { const pp = wheelPoint(previewState); marks += `<circle cx="${pp.x.toFixed(2)}" cy="${pp.y.toFixed(2)}" r="9" fill="${colorInfo(previewState).hex}" stroke="#d9fc73" stroke-width="2" stroke-dasharray="3 2" opacity=".95"><title>Move preview: ${escapeHtml(colorInfo(previewState).name)}</title></circle>`; }
     $('wheelMarkers').innerHTML = marks;
   }
   function renderState(prefix, s) {
@@ -419,9 +413,19 @@ case 'avgBlue': next = resolveTone(hueMidpoint(currentState.h, 19), towardNeutra
     renderStats();
     renderMission();
     renderTrail();
-    document.querySelectorAll('[data-action]').forEach(btn => {
+    document.querySelectorAll('[data-action]').forEach(btn => { btn.disabled = won || isTerminal(currentState); });
+    $('mixApplyBtn').addEventListener('click', () => applyMove('mix', selectedMixColor, selectedRatio));
+
+  document.querySelectorAll('[data-mix-color]').forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.mixColor === selectedMixColor);
       btn.disabled = won || isTerminal(currentState);
     });
+    document.querySelectorAll('[data-ratio]').forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.ratio === selectedRatio);
+      btn.disabled = won || isTerminal(currentState);
+    });
+    const mixStatus = $('mixStatus');
+    if (mixStatus) mixStatus.textContent = `Selected: ${selectedMixColor[0].toUpperCase()+selectedMixColor.slice(1)} · ratio ${selectedRatio} (current : primary)`;
     $('trapNote').textContent = 'Terminal color reached. White and black have no outgoing moves. Reset to try another route.';
     $('trapNote').classList.toggle('show', isTerminal(currentState) && !won);
     $('winBanner').classList.toggle('show', won);
@@ -451,7 +455,27 @@ const bestMessage = mode === 'sandbox'
   }
 
   document.querySelectorAll('.mode-tab').forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
-  document.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => applyMove(btn.dataset.action)));
+  document.querySelectorAll('[data-action]').forEach(btn => {
+    if (btn.id !== 'mixApplyBtn') btn.addEventListener('click', () => applyMove(btn.dataset.action));
+    btn.addEventListener('mouseenter', () => { previewState = computeMove(btn.dataset.action); renderWheel(); });
+    btn.addEventListener('focus', () => { previewState = computeMove(btn.dataset.action); renderWheel(); });
+    btn.addEventListener('mouseleave', () => { previewState = null; renderWheel(); });
+    btn.addEventListener('blur', () => { previewState = null; renderWheel(); });
+  });
+  document.querySelectorAll('[data-mix-color]').forEach(btn => {
+    btn.addEventListener('click', () => { selectedMixColor = btn.dataset.mixColor; previewState = computeMove('mix'); render(); });
+    btn.addEventListener('mouseenter', () => { previewState = computeMove('mix', btn.dataset.mixColor, selectedRatio); renderWheel(); });
+    btn.addEventListener('mouseleave', () => { previewState = null; renderWheel(); });
+    btn.addEventListener('focus', () => { previewState = computeMove('mix', btn.dataset.mixColor, selectedRatio); renderWheel(); });
+    btn.addEventListener('blur', () => { previewState = null; renderWheel(); });
+  });
+  document.querySelectorAll('[data-ratio]').forEach(btn => {
+    btn.addEventListener('click', () => { selectedRatio = btn.dataset.ratio; previewState = computeMove('mix'); render(); });
+    btn.addEventListener('mouseenter', () => { previewState = computeMove('mix', selectedMixColor, btn.dataset.ratio); renderWheel(); });
+    btn.addEventListener('mouseleave', () => { previewState = null; renderWheel(); });
+    btn.addEventListener('focus', () => { previewState = computeMove('mix', selectedMixColor, btn.dataset.ratio); renderWheel(); });
+    btn.addEventListener('blur', () => { previewState = null; renderWheel(); });
+  });
 $('resetBtn').addEventListener('click', () => {
   if (mode === 'hard') {
     openHardStartPicker();

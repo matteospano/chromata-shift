@@ -21,7 +21,7 @@
         <button class="mode-tab" data-mode="hard" aria-pressed="false">Hard Level</button>
         <button class="mode-tab" data-mode="sandbox" aria-pressed="false">Sandbox</button>
       </nav>
-      <details class="howto"><summary>How to play (?)</summary><div class="howto-card"><strong>Reach the target color.</strong><p>Brighten and Darken move one shade. Invert switches to the opposite hue and flips the shade. Mix with Red, Green or Blue repeatedly halves the remaining hue distance and moves one shade toward neutral.</p><p><strong>Moves</strong> counts button presses. <strong>Cost</strong> adds each button's price. <strong>Path distance</strong> adds hue and shade cells crossed; inversion always counts as 6d. White and black are terminal.</p></div></details>
+      <details class="howto"><summary>How to play (?)</summary><div class="howto-card"><strong>Reach the target color.</strong><p>Bright and Dark move one shade. Invert switches to the opposite hue and flips the shade. Choose a primary color and ratio, preview the move by hovering, then press Mix. Ratios mean current color : primary color. Mixing also moves one shade toward neutral.</p><p><strong>Moves</strong> counts button presses. <strong>Cost</strong> adds each button's price. <strong>Path distance</strong> adds hue and shade cells crossed; inversion always counts as 6d. White and black are terminal.</p></div></details>
     </div>
   </header>
 
@@ -60,7 +60,7 @@
 
       <article class="panel wheel-panel" aria-labelledby="wheelTitle">
         <div class="wheel-heading">
-          <div><h2 id="wheelTitle">Color space</h2><div class="wheel-sub">Move through hue + shade</div></div>
+          <div><h2 id="wheelTitle">Color space</h2><div class="wheel-sub">30 evenly spaced hues · 5 shades</div></div>
           <span class="wheel-badge">30 hues / 5 shades</span>
         </div>
         <div class="wheel-wrap">
@@ -92,20 +92,40 @@
 
     <section class="panel actions-panel" aria-labelledby="movesTitle">
       <div class="section-head">
-        <div><h2 id="movesTitle">Choose your move</h2><p id="movesSubtitle">Rules stay fixed. Your route is up to you.</p></div>
+        <div><h2 id="movesTitle">Moves</h2></div>
         <button class="quiet-btn" id="resetBtn">↺ Reset attempt</button>
       </div>
       
-      <div class="action-grid" id="coreActions">
-        <button class="action-btn primary-action" data-action="lighten" title="Move one shade toward white."><span class="action-icon">↑</span><span class="action-name">Brighten</span><span class="action-desc">One shade lighter</span><span class="action-cost">COST 1.0</span></button>
-        <button class="action-btn primary-action" data-action="darken" title="Move one shade toward black."><span class="action-icon">↓</span><span class="action-name">Darken</span><span class="action-desc">One shade darker</span><span class="action-cost">COST 1.0</span></button>
-        <button class="action-btn primary-action" data-action="invert" title="Move to the opposite hue and reverse its shade."><span class="action-icon">◐</span><span class="action-name">Invert</span><span class="action-desc">Opposite hue and shade</span><span class="action-cost">COST 3.0</span></button>
-      </div>
-      
-      <div class="action-grid" id="hopActions">
-        <button class="action-btn" data-action="avgRed" title="Move halfway around the shortest hue route toward red and one shade toward neutral."><span class="action-icon" style="background:#b72e3c">R</span><span class="action-name">Mix with Red</span><span class="action-desc">Halfway toward red</span><span class="action-cost">COST 0.8</span></button>
-        <button class="action-btn" data-action="avgGreen" title="Move halfway around the shortest hue route toward green and one shade toward neutral."><span class="action-icon" style="background:#237c46">G</span><span class="action-name">Mix with Green</span><span class="action-desc">Halfway toward green</span><span class="action-cost">COST 0.8</span></button>
-        <button class="action-btn" data-action="avgBlue" title="Move halfway around the shortest hue route toward blue and one shade toward neutral."><span class="action-icon" style="background:#285ac7">B</span><span class="action-name">Mix with Blue</span><span class="action-desc">Halfway toward blue</span><span class="action-cost">COST 0.8</span></button>
+      <div class="move-layout">
+        <div class="move-group shade-group">
+          <div class="move-group-title">Shader</div>
+          <div class="move-two">
+            <button class="move-control" data-action="lighten" title="Move one shade toward white"><span class="move-control-name">Bright</span><span class="move-control-cost">Cost 1.0</span></button>
+            <button class="move-control" data-action="darken" title="Move one shade toward black"><span class="move-control-name">Dark</span><span class="move-control-cost">Cost 1.0</span></button>
+          </div>
+        </div>
+        <div class="move-group invert-group">
+          <div class="move-group-title">Inverter</div>
+          <button class="move-control" data-action="invert" title="Move to opposite hue and reverse shade"><span class="move-control-name">Hue and shade</span><span class="move-control-cost">Cost 3.0</span></button>
+        </div>
+        <div class="move-group mixer-group">
+          <div class="move-group-title">Mixer</div>
+          <div class="mix-colors" role="group" aria-label="Choose primary color">
+            <button class="mix-color selected" data-mix-color="red" aria-pressed="true"><span class="mix-dot red-dot"></span>Red</button>
+            <button class="mix-color" data-mix-color="green" aria-pressed="false"><span class="mix-dot green-dot"></span>Green</button>
+            <button class="mix-color" data-mix-color="blue" aria-pressed="false"><span class="mix-dot blue-dot"></span>Blue</button>
+          </div>
+          <div class="ratio-row" role="group" aria-label="Mix ratio">
+            <button class="ratio-btn" data-ratio="3:1">3:1</button>
+            <button class="ratio-btn" data-ratio="2:1">2:1</button>
+            <button class="ratio-btn" data-ratio="3:2">3:2</button>
+            <button class="ratio-btn selected" data-ratio="1:1">1:1</button>
+            <button class="ratio-btn" data-ratio="2:3">2:3</button>
+            <button class="ratio-btn" data-ratio="1:2">1:2</button>
+            <button class="ratio-btn" data-ratio="1:3">1:3</button>
+          </div>
+          <div class="mix-footer"><button class="mix-apply" id="mixApplyBtn" type="button" data-action="mix">Mix · Cost 1.0</button></div>
+        </div>
       </div>
       <div class="trap-note" id="trapNote" role="status">Terminal color reached. White, grey, and black have no outgoing moves. Reset to try another route.</div>
       <div class="win-banner" id="winBanner" role="status" aria-live="polite">
