@@ -46,6 +46,30 @@ const HUE_NAMES = [
   const BEST_KEY = 'chroma-shift-level-01-best-v1';
   const $ = (id) => document.getElementById(id);
 
+  //hard level:
+  const HARD_TARGET = clone(LEVEL_TARGET);
+
+const HARD_START_OPTIONS = [
+  {
+    id: 'efficient',
+    label: 'Lime',
+    description: 'Two mixes · cost 1.6 · distance 2d',
+    state: { kind: 'normal', h: 7, t: 2 }
+  },
+  {
+    id: 'inversion',
+    label: 'Pale Magenta',
+    description: 'One inversion · cost 3.0 · distance 6d',
+    state: { kind: 'normal', h: 24, t: -2 }
+  },
+  {
+    id: 'classic',
+    label: 'Light Red',
+    description: 'A longer route with several possible approaches',
+    state: { kind: 'normal', h: 0, t: -1 }
+  }
+];
+
   // Recompose the desktop board: start/target together, wheel in the center, actions at right.
   const boardEl = document.querySelector('.board');
   const colorCards = boardEl.querySelectorAll('.color-panel');
@@ -153,7 +177,7 @@ function hueMidpoint(from, to) {
     try { localStorage.setItem(BEST_KEY, JSON.stringify(bests)); } catch (_) {}
   }
   function updateBests() {
-    if (mode !== 'level') return false;
+    if (mode === 'sandbox') return false;
     let improved = false;
     if (bests.moves === null || moves < bests.moves) { bests.moves = moves; improved = true; }
     if (bests.cost === null || cost < bests.cost - 1e-9) { bests.cost = Number(cost.toFixed(1)); improved = true; }
@@ -162,23 +186,56 @@ function hueMidpoint(from, to) {
     return improved;
   }
   function setMode(nextMode) {
-    if (mode === nextMode) return;
-    mode = nextMode;
-    document.querySelectorAll('.mode-tab').forEach(btn => {
-      const active = btn.dataset.mode === mode;
-      btn.classList.toggle('active', active);
-      btn.setAttribute('aria-pressed', String(active));
-    });
-    if (mode === 'level') {
-      startState = clone(LEVEL_START);
-      targetState = clone(LEVEL_TARGET);
-      configureLevelText();
-    } else {
-      configureSandboxText();
-      randomizePair();
-    }
-    resetAttempt();
+  if (mode === nextMode) {
+    if (mode === 'hard') openHardStartPicker();
+    return;
   }
+
+  mode = nextMode;
+
+  document.querySelectorAll('.mode-tab').forEach(btn => {
+    const active = btn.dataset.mode === mode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+
+  bests = loadBests();
+
+  if (mode === 'level') {
+    startState = clone(LEVEL_START);
+    targetState = clone(LEVEL_TARGET);
+    configureLevelText();
+    resetAttempt();
+    return;
+  }
+
+  if (mode === 'sandbox') {
+    configureSandboxText();
+    randomizePair();
+    resetAttempt();
+    return;
+  }
+
+  if (mode === 'hard') {
+    targetState = clone(HARD_TARGET);
+
+    if ($('introEyebrow')) {
+      $('introEyebrow').textContent =
+        'Hard Level · Choose your route';
+    }
+    if ($('levelCount')) {
+      $('levelCount').textContent = 'HARD';
+    }
+    if ($('trailTitle')) {
+      $('trailTitle').textContent = 'Hard level trace';
+    }
+    if ($('resetBtn')) {
+      $('resetBtn').textContent = '↺ Choose another start';
+    }
+
+    openHardStartPicker();
+  }
+}
   function configureLevelText() {
     $('introEyebrow').textContent = 'Level 01 · Learn the inversion';
     if ($('introTitle')) $('introTitle').textContent = 'Every color is a state.';
@@ -323,9 +380,9 @@ case 'avgBlue': next = resolveTone(hueMidpoint(currentState.h, 19), towardNeutra
     $('movesValue').textContent = String(moves);
     $('costValue').textContent = cost.toFixed(1);
     $('areaValue').innerHTML = `${pathDistance} <small>d</small>`;
-    $('movesBest').innerHTML = `Best: <strong>${mode === 'level' && bests.moves !== null ? bests.moves : '—'}</strong>`;
-    $('costBest').innerHTML = `Best: <strong>${mode === 'level' && bests.cost !== null ? bests.cost.toFixed(1) : '—'}</strong>`;
-    $('areaBest').innerHTML = `Best: <strong>${mode === 'level' && bests.distance !== null ? bests.distance : '—'}</strong>`;
+    $('movesBest').innerHTML = `Best: <strong>${mode !== 'sandbox' && bests.moves !== null ? bests.moves : '—'}</strong>`;
+    $('costBest').innerHTML = `Best: <strong>${mode !== 'sandbox' && bests.cost !== null ? bests.cost.toFixed(1) : '—'}</strong>`;
+    $('areaBest').innerHTML = `Best: <strong>${mode !== 'sandbox' && bests.distance !== null ? bests.distance : '—'}</strong>`;
   }
   function renderMission() {
     const startInfo = colorInfo(startState), targetInfo = colorInfo(targetState);
@@ -369,7 +426,11 @@ case 'avgBlue': next = resolveTone(hueMidpoint(currentState.h, 19), towardNeutra
     $('trapNote').classList.toggle('show', isTerminal(currentState) && !won);
     $('winBanner').classList.toggle('show', won);
     if (won) {
-      const bestMessage = mode === 'level' ? (improved ? 'New personal best recorded for at least one statistic.' : 'Your personal bests are shown above; replay to improve any one of them.') : 'Sandbox runs are unranked. Shuffle for a new start and target.';
+const bestMessage = mode === 'sandbox'
+  ? 'Sandbox runs are unranked. Generate a new pair to continue.'
+  : improved
+    ? 'New personal best recorded for at least one statistic.'
+    : 'Your personal bests are shown above; replay to improve any one of them.';
       $('winDesc').textContent = `${moves} moves · cost ${cost.toFixed(1)} · path distance ${pathDistance}d. ${bestMessage}`;
       $('replayBtn').textContent = mode === 'level' ? 'Replay level' : 'Replay pair';
       $('continueBtn').textContent = mode === 'level' ? 'Try to master it ↗' : 'New color pair ↗';
@@ -391,14 +452,81 @@ case 'avgBlue': next = resolveTone(hueMidpoint(currentState.h, 19), towardNeutra
 
   document.querySelectorAll('.mode-tab').forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
   document.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => applyMove(btn.dataset.action)));
-  $('resetBtn').addEventListener('click', resetAttempt);
-  $('replayBtn').addEventListener('click', resetAttempt);
-  $('continueBtn').addEventListener('click', () => {
-    if (mode === 'sandbox') { randomizePair(); resetAttempt(); }
-    else resetAttempt();
-  });
+$('resetBtn').addEventListener('click', () => {
+  if (mode === 'hard') {
+    openHardStartPicker();
+  } else {
+    resetAttempt();
+  }
+});
+
+$('replayBtn').addEventListener('click', () => {
+  if (mode === 'hard') {
+    openHardStartPicker();
+  } else {
+    resetAttempt();
+  }
+});
+
+$('continueBtn').addEventListener('click', () => {
+  if (mode === 'sandbox') {
+    randomizePair();
+    resetAttempt();
+  } else if (mode === 'hard') {
+    openHardStartPicker();
+  } else {
+    resetAttempt();
+  }
+});
+
+$('cancelStartPicker').addEventListener('click', () => {
+  $('startPicker').classList.add('hidden');
+  setMode('level');
+});
   $('currentHex').addEventListener('click', () => copyHex('current'));
   $('targetHex').addEventListener('click', () => copyHex('target'));
+function openHardStartPicker() {
+  const container = $('startChoices');
+  container.innerHTML = '';
 
+  HARD_START_OPTIONS.forEach(option => {
+    const info = colorInfo(option.state);
+    const button = document.createElement('button');
+
+    button.type = 'button';
+    button.className = 'start-choice';
+
+    button.innerHTML = `
+      <span class="start-choice-swatch"
+            style="background:${info.hex}"></span>
+      <span class="start-choice-copy">
+        <strong>${escapeHtml(option.label)}</strong>
+        <small>${escapeHtml(info.name)} · ${info.hex}</small>
+        <small>${escapeHtml(option.description)}</small>
+      </span>
+    `;
+
+    button.addEventListener('click', () => {
+      chooseHardStart(option.id);
+    });
+
+    container.appendChild(button);
+  });
+
+  $('startPicker').classList.remove('hidden');
+}
+
+function chooseHardStart(id) {
+  const option = HARD_START_OPTIONS.find(item => item.id === id);
+  if (!option) return;
+
+  startState = clone(option.state);
+  targetState = clone(HARD_TARGET);
+
+  $('startPicker').classList.add('hidden');
+
+  // Restart the attempt, not the saved records.
+  resetAttempt();
+}
   render();
 })();

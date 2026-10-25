@@ -242,3 +242,89 @@
     .stat-label { font-size: 8px; }
     .stat-info { display:none; }
   }
+
+/* hard game popup: */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: #080a10cc;
+  backdrop-filter: blur(6px);
+}
+
+.start-picker {
+  width: min(100%, 560px);
+  padding: 24px;
+  box-shadow: 0 24px 80px #0008;
+}
+
+.start-picker h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.start-picker > p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.start-choices {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.start-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.start-choice:hover {
+  border-color: var(--accent);
+  background: var(--panel-3);
+}
+
+.start-choice-swatch {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid #ffffff40;
+}
+
+.start-choice-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.start-choice-copy strong {
+  font-size: 13px;
+}
+
+.start-choice-copy small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.picker-note {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 600px) {
+  .start-picker {
+    padding: 18px;
+  }
+}
